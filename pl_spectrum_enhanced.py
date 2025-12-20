@@ -137,11 +137,11 @@
 # #     if stack_r2 >= weighted_r2:
 # #         chosen = {"type": "stacking", "model": stack, "r2": stack_r2}
 # #         joblib.dump(chosen, MODEL_PATH)
-# #         st.success(f"✅ Selected Stacking Ensemble (R²={stack_r2:.3f})")
+# #         st.success(f"Selected Stacking Ensemble (R²={stack_r2:.3f})")
 # #     else:
 # #         chosen = {"type": "weighted", "models": base_models, "weights": weights, "r2": weighted_r2}
 # #         joblib.dump(chosen, MODEL_PATH)
-# #         st.success(f"✅ Selected Weighted Ensemble (R²={weighted_r2:.3f})")
+# #         st.success(f"Selected Weighted Ensemble (R²={weighted_r2:.3f})")
 # #     return chosen
 
 # # # ======================
@@ -256,7 +256,7 @@
 # #     ensemble_r2 = float(ensemble_obj.get("r2", np.nan))
 
 # #     st.sidebar.write(f"Model: **{ensemble_type}** | R²={ensemble_r2:.3f}")
-# #     if st.sidebar.button("🔁 Retrain Models"):
+# #     if st.sidebar.button(" Retrain Models"):
 # #         if os.path.exists(MODEL_PATH):
 # #             os.remove(MODEL_PATH)
 # #         ensemble_obj = train_and_select_ensemble(force_retrain=True)
@@ -297,7 +297,7 @@
 # #                     "ensemble_r2": float(ensemble_r2)
 # #                 }
 # #                 pd.DataFrame([entry]).to_sql("results", engine, if_exists="append", index=False)
-# #                 st.success("Saved successfully ✅")
+# #                 st.success("Saved successfully ")
 
 # #     elif choice == "View Results":
 # #         df = pd.read_sql("SELECT * FROM results", engine)
@@ -467,11 +467,11 @@ def train_and_select_ensemble(csv_path="nm RGB.csv", force_retrain=False):
     if stack_r2 >= weighted_r2:
         chosen = {"type": "stacking", "model": stack, "r2": stack_r2}
         joblib.dump(chosen, MODEL_PATH)
-        st.success(f"✅ Selected Stacking Ensemble (R²={stack_r2:.3f})")
+        st.success(f" Selected Stacking Ensemble (R²={stack_r2:.3f})")
     else:
         chosen = {"type": "weighted", "models": base_models, "weights": weights, "r2": weighted_r2}
         joblib.dump(chosen, MODEL_PATH)
-        st.success(f"✅ Selected Weighted Ensemble (R²={weighted_r2:.3f})")
+        st.success(f" Selected Weighted Ensemble (R²={weighted_r2:.3f})")
     return chosen
 
 # ======================
@@ -702,7 +702,7 @@ def main():
                     "ensemble_r2": float(ensemble_r2)
                 }
                 pd.DataFrame([entry]).to_sql("results", engine, if_exists="append", index=False)
-                st.success("Saved successfully ✅")
+                st.success("Saved successfully ")
 
     elif choice == "View Results":
         df = pd.read_sql("SELECT * FROM results", engine)
