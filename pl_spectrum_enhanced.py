@@ -539,7 +539,7 @@ def analyze_video_frames(video_path, ensemble_obj):
         frame_batch_rgb.append(weighted_rgb)
         frame_batch_intensity.append(np.mean(patch_weights))
 
-        # Aggregate every 26 frames (~1 sec)
+       
         if frame_idx % 26 == 0:
             avg_rgb = np.mean(frame_batch_rgb, axis=0)
             avg_intensity = np.mean(frame_batch_intensity)
@@ -584,56 +584,55 @@ def plot_emission_spectrum(df, sample_name):
     wl = np.asarray(df["wavelength_nm"].values, dtype=float)
     inten = np.asarray(df["intensity"].values, dtype=float)
 
-    # if all wavelengths identical (degenerate), handle separately
+
     if np.allclose(wl, wl[0]):
         peak_wl = float(wl[0])
-        # create a tiny synthetic spectrum for plotting
         x_s = np.linspace(peak_wl - 5, peak_wl + 5, 200)
         y_s = np.exp(-0.5 * ((x_s - peak_wl) / 1.5) ** 2)
         y_s = y_s / np.max(y_s)
     else:
-        # choose number of bins based on range, but cap to reasonable limits
+
         wl_min, wl_max = wl.min(), wl.max()
         wl_range = max(1e-6, wl_max - wl_min)
-        # bins: try ~ (range * 2) or between 80 and 400 bins
+      
         bins = int(np.clip(wl_range * 2.0, 80, 400))
 
-        # create bins and compute weighted histogram (weights = intensity)
         hist, bin_edges = np.histogram(wl, bins=bins, range=(wl_min - 0.1*wl_range, wl_max + 0.1*wl_range), weights=inten)
         bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
-        # normalize histogram (avoid divide by zero)
+ 
         if hist.max() > 0:
             hist = hist.astype(float) / np.max(hist)
         else:
             hist = hist.astype(float)
 
-        # smooth with gaussian; sigma controls smoothing (tuneable)
-        # choose sigma relative to number of bins
+       
         sigma = max(1.0, bins / 150.0)
         y_s = gaussian_filter1d(hist, sigma=sigma)
         x_s = bin_centers
 
-        # if smoothing introduced tiny negative values (rare), clip
+       
         y_s = np.clip(y_s, 0.0, None)
         if y_s.max() > 0:
             y_s = y_s / y_s.max()
 
-        # peak detection: require peaks above 20% of max (adjustable)
+     
         peaks, props = find_peaks(y_s, height=0.2, distance=3)
         if len(peaks) > 0:
-            # choose the highest local peak
+        
             peak_idx = peaks[np.argmax(props["peak_heights"])]
             peak_wl = float(x_s[peak_idx])
         else:
-            # fallback to global maximum
+       
             peak_idx = int(np.argmax(y_s))
             peak_wl = float(x_s[peak_idx])
 
-    # ----------------- Plotting -----------------
+    # -----------------
+    #    Plotting 
+    #-----------------
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(x_s, y_s, color="royalblue", lw=2, label="Intensity (smoothed)")
-    # mark peak
+   
     ax.scatter(peak_wl, float(np.interp(peak_wl, x_s, y_s)), color="red", s=50, zorder=5,
                label=f"Peak: {peak_wl:.2f} nm")
     ax.set_xlabel("Wavelength (nm)")
@@ -642,7 +641,7 @@ def plot_emission_spectrum(df, sample_name):
     ax.grid(True, alpha=0.3)
     ax.legend()
 
-    # save and show
+  
     path = os.path.join(LOCAL_PLOTS_DIR, f"{uuid.uuid4()}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     st.pyplot(fig)
@@ -719,259 +718,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-# import streamlit as st
-# st.set_page_config(page_title="PL Ensemble System", layout="wide")
 
-# import pandas as pd
-# import os
-# import cv2
-# import numpy as np
-# import uuid
-# import tempfile
-# import joblib
-# from datetime import datetime
-# import matplotlib.pyplot as plt
-
-# from sqlalchemy import create_engine, text
-# from scipy.ndimage import gaussian_filter1d
-# from scipy.signal import find_peaks
-
-# # Canvas ROI tool
-# from streamlit_drawable_canvas import st_canvas
-# from PIL import Image
-
-# # ML
-# from sklearn.model_selection import train_test_split
-# from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, StackingRegressor
-# from sklearn.svm import SVR
-# from sklearn.neighbors import KNeighborsRegressor
-# from sklearn.linear_model import Ridge
-# from sklearn.metrics import r2_score
-
-
-# # ======================================
-# # CONFIG
-# # ======================================
-# MODEL_PATH = "best_ensemble_model.joblib"
-# RESULTS_DB = "sqlite:///pl_results.db"
-
-# engine = create_engine(RESULTS_DB)
-
-
-# # ======================================
-# # TRAIN ENSEMBLE MODEL
-# # ======================================
-# def train_and_select_ensemble(csv_path="nm RGB.csv", force_retrain=False):
-
-#     if os.path.exists(MODEL_PATH) and not force_retrain:
-#         try:
-#             return joblib.load(MODEL_PATH)
-#         except:
-#             pass
-
-#     df = pd.read_csv(csv_path)
-
-#     X = df.drop(columns=["nm"])
-#     y = df["nm"].values
-
-#     X_train, X_val, y_train, y_val = train_test_split(
-#         X, y, test_size=0.2, random_state=42
-#     )
-
-#     base_models = {
-#         "rf": RandomForestRegressor(n_estimators=250, random_state=42),
-#         "gbr": GradientBoostingRegressor(random_state=42),
-#         "svr": SVR(kernel="rbf"),
-#         "knn": KNeighborsRegressor(n_neighbors=4),
-#     }
-
-#     scores = {}
-#     for name, model in base_models.items():
-#         model.fit(X_train, y_train)
-#         pred = model.predict(X_val)
-#         scores[name] = r2_score(y_val, pred)
-
-#     # Weighted ensemble
-#     r2_vals = np.array([max(0, s) for s in scores.values()])
-#     weights = r2_vals / (r2_vals.sum() if r2_vals.sum() else 1)
-
-#     def weighted_predict(X):
-#         return sum(w * m.predict(X) for w, m in zip(weights, base_models.values()))
-
-#     weighted_r2 = r2_score(y_val, weighted_predict(X_val))
-
-#     # Stacking
-#     estimators = [(n, m) for n, m in base_models.items()]
-#     stack = StackingRegressor(estimators=estimators, final_estimator=Ridge())
-#     stack.fit(X_train, y_train)
-#     stack_r2 = r2_score(y_val, stack.predict(X_val))
-
-#     # Choose best
-#     if stack_r2 >= weighted_r2:
-#         model_obj = {"type": "stacking", "model": stack}
-#     else:
-#         model_obj = {"type": "weighted", "models": base_models, "weights": weights}
-
-#     joblib.dump(model_obj, MODEL_PATH)
-
-#     return model_obj
-
-
-# # Load model
-# model_obj = train_and_select_ensemble()
-
-
-# # ======================================
-# # ENSEMBLE PREDICT
-# # ======================================
-# def ensemble_predict(model_obj, X):
-#     if model_obj["type"] == "stacking":
-#         return model_obj["model"].predict(X)
-#     else:
-#         preds = np.zeros(len(X))
-#         for w, m in zip(model_obj["weights"], model_obj["models"].values()):
-#             preds += w * m.predict(X)
-#         return preds
-
-
-# # ======================================
-# # VIDEO ANALYSIS WITH MANUAL ROI
-# # ======================================
-# def analyze_video_frames(video_path, model_obj, roi):
-#     x, y, w, h = roi
-
-#     cap = cv2.VideoCapture(video_path)
-#     if not cap.isOpened():
-#         return None
-
-#     wavelengths = []
-#     intensities = []
-#     grid = 5  # sampling subdivision inside ROI
-
-#     while True:
-#         ret, frame = cap.read()
-#         if not ret:
-#             break
-
-#         crop = frame[y:y + h, x:x + w]
-#         if crop.size == 0:
-#             continue
-
-#         ph, pw = crop.shape[0] // grid, crop.shape[1] // grid
-
-#         patch_rgb = []
-#         patch_weights = []
-
-#         for i in range(grid):
-#             for j in range(grid):
-#                 y1, y2 = i * ph, (i + 1) * ph
-#                 x1, x2 = j * pw, (j + 1) * pw
-
-#                 patch = crop[y1:y2, x1:x2]
-#                 if patch.size == 0:
-#                     continue
-
-#                 gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
-#                 intensity = float(np.mean(gray))
-
-#                 rgb = cv2.resize(patch, (1, 1))[0, 0][::-1]
-
-#                 patch_rgb.append(rgb)
-#                 patch_weights.append(intensity ** 2)
-
-#         patch_rgb = np.array(patch_rgb)
-#         patch_weights = np.array(patch_weights)
-
-#         patch_weights /= np.sum(patch_weights)
-
-#         final_rgb = np.average(patch_rgb, axis=0, weights=patch_weights)
-#         nm = ensemble_predict(model_obj, np.array(final_rgb).reshape(1, -1))[0]
-
-#         wavelengths.append(float(nm))
-#         intensities.append(float(np.mean(patch_weights)))
-
-#     cap.release()
-
-#     if not wavelengths:
-#         return None
-
-#     return {
-#         "avg_nm": float(np.mean(wavelengths)),
-#         "peak_nm": float(np.max(wavelengths)),
-#         "min_nm": float(np.min(wavelengths)),
-#         "max_nm": float(np.max(wavelengths)),
-#         "wavelength_list": wavelengths,
-#     }
-
-
-# # ======================================
-# # STREAMLIT UI
-# # ======================================
-# def main():
-#     st.title("⚡ Photoluminescence — Manual ROI Analyzer")
-
-#     sample_name = st.text_input("Sample Name")
-#     uploaded = st.file_uploader("Upload Emission Video", type=["mp4", "avi", "mov"])
-
-#     if uploaded:
-#         # Save temporary video
-#         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-#             tmp.write(uploaded.getbuffer())
-#             video_path = tmp.name
-
-#         # Read first frame
-#         cap = cv2.VideoCapture(video_path)
-#         ret, frame = cap.read()
-#         cap.release()
-
-#         if not ret:
-#             st.error("Could not read video.")
-#             return
-
-#         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#         rgb_pil = Image.fromarray(rgb)
-
-#         st.subheader("🎯 Draw ROI on First Frame")
-
-#         canvas = st_canvas(
-#             stroke_width=3,
-#             stroke_color="red",
-#             background_image=rgb_pil,
-#             height=rgb.shape[0],
-#             width=rgb.shape[1],
-#             drawing_mode="rect",
-#             key="roi_canvas",
-#         )
-
-#         roi = None
-#         if canvas.json_data and len(canvas.json_data["objects"]) > 0:
-#             obj = canvas.json_data["objects"][0]
-#             roi = (
-#                 int(obj["left"]),
-#                 int(obj["top"]),
-#                 int(obj["width"]),
-#                 int(obj["height"]),
-#             )
-
-#             st.success(f"ROI Selected: {roi}")
-
-#         if st.button("Process Video"):
-#             if roi is None:
-#                 st.error("Please draw ROI first!")
-#                 return
-
-#             result = analyze_video_frames(video_path, model_obj, roi)
-#             os.remove(video_path)
-
-#             if result is None:
-#                 st.error("Could not process video.")
-#             else:
-#                 st.success("Video Processed!")
-#                 st.json(result)
-
-#                 # Plot wavelength line graph
-#                 st.line_chart(result["wavelength_list"])
-
-
-# if __name__ == "__main__":
-#     main()
